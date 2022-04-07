@@ -7,30 +7,18 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/AccessControl.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/SafeMath.sol";
 
-
-contract SharedWallet is Ownable, AccessControl {
-    using SafeMath for uint256;
-
-    event BalanceReceived (address indexed _from, uint256 _amount);
-    event AmountSpent (address indexed _by, address indexed _to, uint256 _amount);
-
+contract Membership is Ownable, AccessControl {
+    
     bytes32 public constant FAMILY_ROLE = keccak256("FAMILY");
     bytes32 public constant ApprovedSpender_ROLE = keccak256("ApprovedSpender");
-
+    
     mapping(bytes32 => uint256) public allowance;
     mapping(address => uint256) public remainingBalance;
 
     address payable[] internal AllFamilyAcc;
     address payable[] internal AllAppSpendersAcc;
 
-//initializes the contract with the root address as admin
-    constructor () public {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        allowance[FAMILY_ROLE] = 1 ether;
-        allowance[ApprovedSpender_ROLE] = 2 ether;
-    }
-
-//define modifiers for permission control
+    //define modifiers for permission control
     modifier onlyFamily() {
         require(isFamily(msg.sender), "Restricted to family members!");
         _;
@@ -48,14 +36,15 @@ contract SharedWallet is Ownable, AccessControl {
         require(hasRole(ApprovedSpender_ROLE, msg.sender) || hasRole(FAMILY_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender));
         _;
     }
-    modifier TransferBalanceCheck(uint256 _value) {
-        require(remainingBalance[msg.sender] > _value, "Not enough money!");
-        require(_value<= address(this).balance, "The smart contract does not have enough funds!");
-        assert(remainingBalance[msg.sender] - _value < remainingBalance[msg.sender]);
-        _;
+
+    //initializes the contract with the root address as admin
+    constructor () public {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        allowance[FAMILY_ROLE] = 1 ether;
+        allowance[ApprovedSpender_ROLE] = 2 ether;
     }
 
-//function that validates role membership
+    //function that validates role membership
     function isFamily(address _account)
         public virtual view returns(bool) 
         {
@@ -68,8 +57,8 @@ contract SharedWallet is Ownable, AccessControl {
             return hasRole(ApprovedSpender_ROLE, _account);
         }
 
-//function that easily adds members to the different groups and initializes their balance
-//adds input checking to avoid balance re-initialization with every "add" function call
+    //function that easily adds members to the different groups and initializes their balance
+    //adds input checking to avoid balance re-initialization with every "add" function call
     function addFamilyMember(address payable _account)
         public virtual
         {
@@ -83,11 +72,23 @@ contract SharedWallet is Ownable, AccessControl {
         {
             require(!hasRole(ApprovedSpender_ROLE, _account),"Already an approved spender!");
             grantRole(ApprovedSpender_ROLE, _account);
-            remainingBalance[_account]=allowance[ApprovedSpender_ROLE];
+            remainingBalance[_account] = allowance[ApprovedSpender_ROLE];
             AllAppSpendersAcc.push(payable(_account));
         }
-//set allowance family and approved spenders
-//allowance to be added to the remaining balance 
+    
+}
+
+contract Allowance is Membership {
+
+    modifier TransferBalanceCheck(uint256 _value) {
+        require(remainingBalance[msg.sender] > _value, "Not enough money!");
+        require(_value<= address(this).balance, "The smart contract does not have enough funds!");
+        assert(remainingBalance[msg.sender] - _value < remainingBalance[msg.sender]);
+        _;
+    }
+
+    //set allowance family and approved spenders
+    //allowance to be added to the remaining balance 
     function SetAllowance(uint256 _FamilyAmount, uint256 _AppSpenderAmount)
         public payable
         {
@@ -110,7 +111,15 @@ contract SharedWallet is Ownable, AccessControl {
         remainingBalance[msg.sender] -= _value;
     }
 
-//Send value function with input and overflow control
+}
+
+contract SharedWallet is Membership, Allowance {
+    // using SafeMath for uint256;
+
+    event BalanceReceived (address indexed _from, uint256 _amount);
+    event AmountSpent (address indexed _by, address indexed _to, uint256 _amount);
+
+    //Send value function with input and overflow control
     function SendValue(address payable _to, uint256 _value)
         public payable 
         OnlyMembers TransferBalanceCheck(_value)
@@ -118,19 +127,18 @@ contract SharedWallet is Ownable, AccessControl {
             reduceBalance(_value);            
             emit AmountSpent (msg.sender, _to, _value);
             _to.transfer(_value);
-
         }
 
-//"receive" fallback
+    //"receive" fallback
     receive() external payable {
         emit BalanceReceived (msg.sender, msg.value);
     }
-//fallback function
+    //fallback function
     fallback() external payable {
         emit BalanceReceived (msg.sender, msg.value);
     }
         
-//Shows the contract's balance
+    //Shows the contract's balance
     function ContractBalance() external view onlyOwner returns(uint256) {
         return address(this).balance;
     }
