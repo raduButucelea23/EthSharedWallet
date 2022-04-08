@@ -80,44 +80,48 @@ contract Membership is Ownable, AccessControl {
 
 contract Allowance is Membership {
 
-    modifier TransferBalanceCheck(uint256 _value) {
-        require(remainingBalance[msg.sender] > _value, "Not enough money!");
-        require(_value<= address(this).balance, "The smart contract does not have enough funds!");
-        assert(remainingBalance[msg.sender] - _value < remainingBalance[msg.sender]);
-        _;
-    }
+    using SafeMath for uint;
+    event allowanceUpdate (bytes32 indexed _FamilyRole, bytes32 indexed _AppSpenderRole, uint256 _FamAllowance, uint256 _AppSpeAllow);
 
     //set allowance family and approved spenders
     //allowance to be added to the remaining balance 
     function SetAllowance(uint256 _FamilyAmount, uint256 _AppSpenderAmount)
         public payable
         {
+        
+        emit allowanceUpdate (FAMILY_ROLE, ApprovedSpender_ROLE, _FamilyAmount, _AppSpenderAmount);
+
         //family update loop
         for (uint i=0; i<=AllFamilyAcc.length; i++) {
               
               //AllFamilyAcc[i].transfer(_FamilyAmount);
-              remainingBalance[AllFamilyAcc[i]] += _FamilyAmount;
+              remainingBalance[AllFamilyAcc[i]] = remainingBalance[AllFamilyAcc[i]].add(_FamilyAmount);
           }
 
         //approved spender array
         for (uint i=0; i<=AllAppSpendersAcc.length; i++) {
             //   AllAppSpendersAcc[i].transfer(_AppSpenderAmount);
-              remainingBalance[AllAppSpendersAcc[i]] += _AppSpenderAmount;
+              remainingBalance[AllAppSpendersAcc[i]] = remainingBalance[AllAppSpendersAcc[i]].add(_AppSpenderAmount);
           }
         }
-
-
-    function reduceBalance(uint256 _value) internal {
-        remainingBalance[msg.sender] -= _value;
-    }
 
 }
 
 contract SharedWallet is Membership, Allowance {
-    // using SafeMath for uint256;
+    using SafeMath for uint;
 
     event BalanceReceived (address indexed _from, uint256 _amount);
     event AmountSpent (address indexed _by, address indexed _to, uint256 _amount);
+
+    modifier TransferBalanceCheck(uint256 _value) {
+        require(remainingBalance[msg.sender] > _value, "Not enough money!");
+        require(_value<= address(this).balance, "The smart contract does not have enough funds!");
+        _;
+    }
+    
+    function reduceBalance(uint256 _value) internal {
+        remainingBalance[msg.sender] = remainingBalance[msg.sender].sub(_value);
+    }
 
     //Send value function with input and overflow control
     function SendValue(address payable _to, uint256 _value)
