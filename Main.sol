@@ -76,6 +76,11 @@ contract Membership is Ownable, AccessControl {
             AllAppSpendersAcc.push(payable(_account));
         }
     
+    //removing support for the "renounceOwnership" function
+    function renounceOwnership() public override {
+        revert("Function not supported!");
+    }
+    
 }
 
 contract Allowance is Membership {
@@ -132,7 +137,7 @@ contract SharedWallet is Membership, Allowance {
             emit AmountSpent (msg.sender, _to, _value);
             _to.transfer(_value);
         }
-
+    
     //"receive" fallback
     receive() external payable {
         emit BalanceReceived (msg.sender, msg.value);
