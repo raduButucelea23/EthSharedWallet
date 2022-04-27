@@ -19,14 +19,14 @@ contract Allowance is Membership {
         emit allowanceUpdate (FAMILY_ROLE, ApprovedSpender_ROLE, _FamilyAmount, _AppSpenderAmount);
 
         //family update loop
-        for (uint i=0; i<=AllFamilyAcc.length; i++) {
+        for (uint i=0; i<AllFamilyAcc.length; i++) {
               
               //AllFamilyAcc[i].transfer(_FamilyAmount);
               remainingBalance[AllFamilyAcc[i]] = remainingBalance[AllFamilyAcc[i]].add(_FamilyAmount);
           }
 
         //approved spender array
-        for (uint i=0; i<=AllAppSpendersAcc.length; i++) {
+        for (uint i=0; i<AllAppSpendersAcc.length; i++) {
             //   AllAppSpendersAcc[i].transfer(_AppSpenderAmount);
               remainingBalance[AllAppSpendersAcc[i]] = remainingBalance[AllAppSpendersAcc[i]].add(_AppSpenderAmount);
           }

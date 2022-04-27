@@ -42,7 +42,7 @@ contract SharedWallet is Membership, Allowance {
     }
         
     //Shows the contract's balance
-    function ContractBalance() external view onlyOwner returns(uint256) {
+    function ContractBalance() external view returns(uint256) {
         return address(this).balance;
     }
 
